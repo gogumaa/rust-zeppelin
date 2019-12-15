@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 #[macro_use]
 extern crate juniper;
 use bson::{from_bson, oid::ObjectId, Bson, Document};
@@ -55,6 +56,16 @@ impl DatabasePool {
       .unwrap()
   }
 
+  pub fn find_notebooks(&self) -> FieldResult<Vec<Notebook>> {
+    let coll: Collection = self.client.db(&self.db_name).collection("notebooks");
+    let cursor = coll.find(None, None)?;
+    let res: Result<Vec<_>, _> = cursor
+      .map(|row| row.and_then(|item| Ok(from_bson::<Notebook>(Bson::Document(item))?)))
+      .collect();
+
+    Ok(res?)
+  }
+
   pub fn find_paragraph(&self, id: &str) -> FieldResult<Paragraph> {
     let coll: Collection = self.client.db(&self.db_name).collection("paragraphs");
     let cursor: Option<Document> =
@@ -87,6 +98,12 @@ pub struct Query;
 impl Query {
   fn apiVersion() -> &str {
     "1.0"
+  }
+
+  // query: { notebooks { id, name } }
+  fn notebooks(context: &Context) -> FieldResult<Vec<Notebook>>{
+    let notebooks = context.db.find_notebooks()?;
+    Ok(notebooks)
   }
 
   // Arguments to resolvers can either be simple types or input objects.
